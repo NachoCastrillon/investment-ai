@@ -1,0 +1,53 @@
+name: Scheduled Investment AI Update
+
+on:
+  workflow_dispatch:
+
+  schedule:
+    # Monday to Friday at 21:30 UTC.
+    # Approx. after US market close.
+    - cron: "30 21 * * 1-5"
+
+permissions:
+  contents: write
+
+jobs:
+  update-dashboard:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run investment AI update
+        env:
+          RUN_MODE: update
+          FAST_MODE: true
+          ENABLE_WALK_FORWARD: true
+          CACHE_MAX_AGE_HOURS: 18
+        run: |
+          python investment_ai.py
+
+      - name: Commit updated dashboard
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+
+          git add docs investment_ai_results || true
+
+          if git diff --cached --quiet; then
+            echo "No changes to commit."
+          else
+            git commit -m "Auto update investment dashboard"
+            git push
+          fi
