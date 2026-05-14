@@ -1,0 +1,49 @@
+name: Update Investment AI Site Every 30 Minutes
+
+on:
+  schedule:
+    - cron: "*/30 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: investment-ai-auto-update
+  cancel-in-progress: true
+
+jobs:
+  update-site:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pandas numpy yfinance scikit-learn xgboost plotly joblib tqdm matplotlib
+
+      - name: Run Investment AI script
+        run: |
+          python investment_ai.py
+
+      - name: Commit updated site
+        run: |
+          git config user.name "investment-ai-bot"
+          git config user.email "actions@github.com"
+
+          git add docs/index.html docs/version.json investment_ai_results || true
+
+          if git diff --cached --quiet; then
+            echo "No changes to commit."
+          else
+            git commit -m "Auto-update Investment AI site"
+            git push
+          fi
